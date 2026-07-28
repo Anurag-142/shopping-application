@@ -1,0 +1,46 @@
+/* Global custom styles — Bootstrap is imported in main.jsx */
+
+body {
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
+
+/* Product card image */
+.product-card-img {
+  height: 200px;
+  object-fit: cover;
+  width: 100%;
+}
+
+/* Sticky footer spacing */
+main {
+  min-height: calc(100vh - 120px);
+  padding-bottom: 2rem;
+}
+
+/* Cart badge */
+.cart-badge {
+  font-size: 0.65rem;
+  top: -4px;
+  right: -8px;
+}
+
+/* Subtle card hover */
+.product-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+/* Admin table row */
+.admin-inactive {
+  opacity: 0.55;
+}
+
+/* Spinner overlay */
+.spinner-overlay {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 3rem 0;
+}

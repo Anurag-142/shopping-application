@@ -1,0 +1,27 @@
+﻿# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+build/
+**/dist/
+**/build/
+
+# Environment / secrets
+.env
+**/.env
+
+# Logs
+*.log
+**/*.log
+
+# Bob internal folder
+.bob/
+
+# Docs
+docs/
+
+# OS artefacts
+.DS_Store
+Thumbs.db
