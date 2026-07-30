@@ -8,15 +8,16 @@ const pool = require('../../src/config/db');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 async function cleanDb() {
-  await pool.query('DELETE FROM order_items');
-  await pool.query('DELETE FROM orders');
-  await pool.query('DELETE FROM cart_items');
-  await pool.query('DELETE FROM products WHERE name LIKE \'%Test Product%\'');
-  await pool.query('DELETE FROM users WHERE email LIKE \'%@testshop.com\'');
+  // TRUNCATE in dependency order with CASCADE to avoid FK ordering issues
+  await pool.query(
+    'TRUNCATE TABLE order_items, orders, cart_items, products, users RESTART IDENTITY CASCADE'
+  );
+  // Keep categories — they are not test-specific; just remove the test one
+  await pool.query("DELETE FROM categories WHERE name = 'Test Category'");
 }
 
 async function seedTestData() {
-  // Insert a category
+  // Insert a category (upsert — always returns a row)
   const catResult = await pool.query(
     `INSERT INTO categories (name) VALUES ('Test Category')
      ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
@@ -24,15 +25,24 @@ async function seedTestData() {
   );
   const categoryId = catResult.rows[0].id;
 
-  // Insert a product
+  // Insert a product — upsert on name so RETURNING always yields a row.
+  // products.name has a UNIQUE constraint (see migration).
   const prodResult = await pool.query(
     `INSERT INTO products (name, description, price, category_id, stock_qty)
-     VALUES ('Test Product Alpha', 'A test product', 29.99, $1, 50)
-     ON CONFLICT DO NOTHING
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (name) DO UPDATE
+       SET description  = EXCLUDED.description,
+           price        = EXCLUDED.price,
+           category_id  = EXCLUDED.category_id,
+           stock_qty    = EXCLUDED.stock_qty
      RETURNING id`,
-    [categoryId]
+    ['Test Product Alpha', 'A test product', 29.99, categoryId, 50]
   );
-  const productId = prodResult.rows[0]?.id;
+  const productId = prodResult.rows[0].id;
+
+  if (!productId) {
+    throw new Error('seedTestData: failed to create or find product "Test Product Alpha"');
+  }
 
   return { categoryId, productId };
 }
@@ -175,7 +185,7 @@ describe('Checkout flow', () => {
   });
 
   test('adds item to cart', async () => {
-    if (!productId) return; // skip if seed didn't run
+    expect(productId).toBeDefined(); // hard-fail rather than silently skip
     const res = await request(app)
       .post('/api/cart')
       .set('Authorization', `Bearer ${token}`)
@@ -186,7 +196,7 @@ describe('Checkout flow', () => {
   });
 
   test('places an order and clears the cart', async () => {
-    if (!productId) return;
+    expect(productId).toBeDefined();
     const orderRes = await request(app)
       .post('/api/orders')
       .set('Authorization', `Bearer ${token}`)

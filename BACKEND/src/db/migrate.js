@@ -79,6 +79,10 @@ CREATE TABLE order_items (
   quantity   INT            NOT NULL CHECK (quantity > 0)
 );
 
+-- ── Unique constraint on product name ────────────────────────────────────────
+-- Required for ON CONFLICT (name) in seeds and test helpers.
+ALTER TABLE products ADD CONSTRAINT products_name_unique UNIQUE (name);
+
 -- ── Index for faster product search ──────────────────────────────────────────
 CREATE INDEX idx_products_active ON products(is_active);
 CREATE INDEX idx_products_category ON products(category_id);
