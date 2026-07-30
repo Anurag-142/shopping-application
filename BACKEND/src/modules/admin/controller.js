@@ -43,4 +43,27 @@ async function deleteProduct(req, res, next) {
   }
 }
 
-module.exports = { listProducts, createProduct, updateProduct, deleteProduct };
+// POST /api/admin/products/bulk
+// Body: { products: [ { name, price, ... }, ... ] }
+async function bulkCreateProducts(req, res, next) {
+  try {
+    const { products } = req.body;
+    if (!Array.isArray(products) || products.length === 0) {
+      return res.status(400).json({ error: 'products must be a non-empty array.' });
+    }
+    if (products.length > 200) {
+      return res.status(400).json({ error: 'Maximum 200 products per bulk import.' });
+    }
+    // Validate each row has at minimum name + price
+    const invalid = products.filter((p, i) => !p.name || p.price === undefined || p.price === null);
+    if (invalid.length > 0) {
+      return res.status(400).json({ error: `${invalid.length} product(s) missing name or price.` });
+    }
+    const created = await adminService.bulkCreateProducts(products);
+    res.status(201).json({ created: created.length, products: created });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { listProducts, createProduct, updateProduct, deleteProduct, bulkCreateProducts };

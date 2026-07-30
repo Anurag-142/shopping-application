@@ -10,6 +10,7 @@ router.use(jwtVerify, roleGuard('admin'));
 
 router.get('/products', controller.listProducts);
 router.post('/products', controller.createProduct);
+router.post('/products/bulk', controller.bulkCreateProducts);
 router.put('/products/:id', controller.updateProduct);
 router.delete('/products/:id', controller.deleteProduct);
 

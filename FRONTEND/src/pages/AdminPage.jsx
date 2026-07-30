@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { formatINR } from '../utils/formatCurrency';
-
 import {
-  Table, Button, Badge, Alert, Modal, Form, Row, Col, InputGroup, Spinner,
+  Table, Button, Badge, Alert, Modal, Form, Row, Col, Spinner,
 } from 'react-bootstrap';
 import { adminService } from '../services/adminService';
 import { productService } from '../services/productService';
@@ -25,6 +24,54 @@ export default function AdminPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState({});
   const [saving, setSaving] = useState(false);
+
+  // ── Bulk import state ──────────────────────────────────────────────────────
+  const [showBulk, setShowBulk] = useState(false);
+  const [bulkJson, setBulkJson] = useState('');
+  const [bulkError, setBulkError] = useState('');
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const fileRef = useRef(null);
+
+  async function handleBulkImport() {
+    setBulkError('');
+    let parsed;
+    try {
+      parsed = JSON.parse(bulkJson);
+    } catch {
+      setBulkError('Invalid JSON. Please fix and try again.');
+      return;
+    }
+    // Accept array directly or { products: [...] }
+    const list = Array.isArray(parsed) ? parsed : parsed.products;
+    if (!Array.isArray(list) || list.length === 0) {
+      setBulkError('JSON must be an array of product objects (or { products: [...] }).');
+      return;
+    }
+    setBulkLoading(true);
+    try {
+      const result = await adminService.bulkCreate(list);
+      setSuccess(`✅ Bulk import complete — ${result.created} product${result.created !== 1 ? 's' : ''} added.`);
+      setShowBulk(false);
+      setBulkJson('');
+      fetchProducts(1);
+    } catch (err) {
+      setBulkError(err.response?.data?.error || 'Bulk import failed.');
+    } finally {
+      setBulkLoading(false);
+    }
+  }
+
+  function handleBulkFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setBulkJson(ev.target.result);
+    reader.readAsText(file);
+  }
+
+  const BULK_TEMPLATE = JSON.stringify([
+    { name: 'Example Product', description: 'A great product', price: 999, category_id: 1, image_url: '', stock_qty: 50 },
+  ], null, 2);
 
   const fetchProducts = useCallback(async (page = 1) => {
     setLoading(true);
@@ -142,7 +189,12 @@ export default function AdminPage() {
     <div>
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 className="fw-bold mb-0">Admin — Product Management</h2>
-        <Button variant="primary" onClick={openAdd}>+ Add Product</Button>
+        <div className="d-flex gap-2">
+          <Button variant="outline-secondary" onClick={() => { setBulkJson(BULK_TEMPLATE); setShowBulk(true); }}>
+            ⬆ Bulk Import
+          </Button>
+          <Button variant="primary" onClick={openAdd}>+ Add Product</Button>
+        </div>
       </div>
 
       {success && <Alert variant="success" dismissible onClose={() => setSuccess('')}>{success}</Alert>}
@@ -285,6 +337,56 @@ export default function AdminPage() {
           <Button variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>
           <Button variant="primary" onClick={handleSave} disabled={saving}>
             {saving ? <><Spinner size="sm" animation="border" className="me-1" />Saving…</> : (editing ? 'Save Changes' : 'Create Product')}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* ── Bulk Import Modal ── */}
+      <Modal show={showBulk} onHide={() => setShowBulk(false)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>⬆ Bulk Import Products</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Alert variant="info" className="small py-2 mb-3">
+            Paste a JSON array of products below, or upload a <code>.json</code> file.
+            Maximum <strong>200 products</strong> per import. Each product needs at minimum
+            <code> name</code> and <code>price</code>.
+          </Alert>
+
+          {bulkError && <Alert variant="danger">{bulkError}</Alert>}
+
+          <div className="mb-3">
+            <Form.Label className="fw-semibold">Upload JSON file</Form.Label>
+            <Form.Control type="file" accept=".json" ref={fileRef} onChange={handleBulkFile} />
+          </div>
+
+          <Form.Group>
+            <Form.Label className="fw-semibold">Or paste JSON directly</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={12}
+              value={bulkJson}
+              onChange={(e) => setBulkJson(e.target.value)}
+              placeholder='[{ "name": "Product", "price": 999, "stock_qty": 10 }]'
+              style={{ fontFamily: 'monospace', fontSize: 13 }}
+            />
+          </Form.Group>
+
+          <Alert variant="secondary" className="small mt-3 py-2">
+            <strong>Available fields:</strong>{' '}
+            <code>name*</code>, <code>price*</code>, <code>description</code>,{' '}
+            <code>category_id</code>, <code>image_url</code>, <code>stock_qty</code>, <code>is_active</code>
+            <br />
+            <strong>Category IDs:</strong>{' '}
+            {categories.map((c) => `${c.id}=${c.name}`).join(' · ')}
+          </Alert>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowBulk(false)}>Cancel</Button>
+          <Button variant="primary" onClick={handleBulkImport} disabled={bulkLoading || !bulkJson.trim()}>
+            {bulkLoading
+              ? <><Spinner size="sm" animation="border" className="me-1" />Importing…</>
+              : 'Import Products'}
           </Button>
         </Modal.Footer>
       </Modal>

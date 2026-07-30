@@ -97,4 +97,36 @@ async function deactivateProduct(id) {
   return result.rows[0];
 }
 
-module.exports = { listAllProducts, createProduct, updateProduct, deactivateProduct };
+async function bulkCreateProducts(products) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const created = [];
+    for (const p of products) {
+      const result = await client.query(
+        `INSERT INTO products (name, description, price, category_id, image_url, stock_qty, is_active)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING *`,
+        [
+          p.name,
+          p.description || '',
+          parseFloat(p.price),
+          p.category_id ? parseInt(p.category_id, 10) : null,
+          p.image_url || '',
+          parseInt(p.stock_qty || 0, 10),
+          p.is_active !== false,
+        ]
+      );
+      created.push(result.rows[0]);
+    }
+    await client.query('COMMIT');
+    return created;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+module.exports = { listAllProducts, createProduct, updateProduct, deactivateProduct, bulkCreateProducts };
