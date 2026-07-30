@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Row, Col, Badge, Button, Alert, Spinner } from 'react-bootstrap';
+import { formatINR } from '../utils/formatCurrency';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { productService } from '../services/productService';
 import { cartService } from '../services/cartService';
 import { useAuth } from '../context/AuthContext';
@@ -45,75 +45,102 @@ export default function ProductDetailPage() {
   }
 
   if (loading) return <LoadingSpinner />;
-  if (!product && error) return <Alert variant="danger">{error}</Alert>;
+  if (!product && error) return <div className="fk-section"><div className="fk-alert fk-alert--danger">{error}</div></div>;
   if (!product) return null;
 
   const isOutOfStock = product.stock_qty === 0;
   const maxQty = Math.min(product.stock_qty, 10);
+  const seed = (product.id * 17 + 5) % 16;
+  const discountPct = 20 + seed;
+  const originalPrice = product.price / (1 - discountPct / 100);
+  const stars = 3.5 + ((product.id * 7) % 15) / 10;
+  const ratingCount = 200 + ((product.id * 53) % 4800);
 
   return (
-    <div>
-      <Button variant="link" className="mb-3 ps-0 text-decoration-none" onClick={() => navigate(-1)}>
-        ← Back to Products
-      </Button>
-      <Row>
-        <Col md={5}>
-          <img
-            src={product.image_url || 'https://via.placeholder.com/500x400?text=No+Image'}
-            alt={product.name}
-            className="img-fluid rounded shadow-sm w-100"
-            style={{ maxHeight: '420px', objectFit: 'cover' }}
-            onError={(e) => { e.target.src = 'https://via.placeholder.com/500x400?text=No+Image'; }}
-          />
-        </Col>
-        <Col md={7} className="mt-4 mt-md-0">
-          {product.category_name && (
-            <Badge bg="secondary" className="mb-2">{product.category_name}</Badge>
-          )}
-          <h2 className="fw-bold">{product.name}</h2>
-          <p className="text-primary fs-3 fw-bold">${parseFloat(product.price).toFixed(2)}</p>
-          <p className="text-muted">{product.description}</p>
+    <div className="fk-pdp-page">
+      {/* Breadcrumb */}
+      <div className="fk-breadcrumb">
+        <Link to="/" className="fk-bread-link">Home</Link>
+        <span className="fk-bread-sep">›</span>
+        <Link to="/products" className="fk-bread-link">Products</Link>
+        {product.category_name && <>
+          <span className="fk-bread-sep">›</span>
+          <span className="fk-bread-link">{product.category_name}</span>
+        </>}
+        <span className="fk-bread-sep">›</span>
+        <span className="fk-bread-current">{product.name}</span>
+      </div>
 
-          <div className="mb-3">
-            {isOutOfStock ? (
-              <Badge bg="warning" text="dark" className="fs-6">Out of Stock</Badge>
-            ) : (
-              <span className="text-success small">{product.stock_qty} in stock</span>
-            )}
+      <div className="fk-pdp-card">
+        {/* Left — image panel */}
+        <div className="fk-pdp-img-panel">
+          <img
+            src={product.image_url || 'https://via.placeholder.com/500x500?text=No+Image'}
+            alt={product.name}
+            className="fk-pdp-img"
+            onError={(e) => { e.target.src = 'https://via.placeholder.com/500x500?text=No+Image'; }}
+          />
+        </div>
+
+        {/* Right — details panel */}
+        <div className="fk-pdp-info">
+          {product.category_name && (
+            <span className="fk-pdp-cat">{product.category_name}</span>
+          )}
+          <h1 className="fk-pdp-name">{product.name}</h1>
+
+          {/* Rating */}
+          <div className="fk-pdp-rating-row">
+            <span className="fk-rating-pill">
+              {stars.toFixed(1)} ★
+            </span>
+            <span className="fk-rating-count">{ratingCount.toLocaleString('en-IN')} ratings</span>
           </div>
 
-          {success && <Alert variant="success">{success}</Alert>}
-          {error && <Alert variant="danger">{error}</Alert>}
+          <div className="fk-pdp-divider" />
 
-          {!isOutOfStock && (
-            <div className="d-flex align-items-center gap-3 mb-3">
-              <div className="d-flex align-items-center border rounded">
-                <Button
-                  variant="light"
-                  size="sm"
-                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  disabled={quantity <= 1}
-                >−</Button>
-                <span className="px-3 fw-semibold">{quantity}</span>
-                <Button
-                  variant="light"
-                  size="sm"
-                  onClick={() => setQuantity((q) => Math.min(maxQty, q + 1))}
-                  disabled={quantity >= maxQty}
-                >+</Button>
+          {/* Price block */}
+          <div className="fk-pdp-price-block">
+            <span className="fk-pdp-price">{formatINR(product.price)}</span>
+            <span className="fk-pdp-original">{formatINR(originalPrice)}</span>
+            <span className="fk-pdp-discount">{discountPct}% off</span>
+          </div>
+          <p className="fk-pdp-delivery-tag">Free delivery · In stock: {product.stock_qty}</p>
+
+          <div className="fk-pdp-divider" />
+
+          {/* Description */}
+          <p className="fk-pdp-desc">{product.description}</p>
+
+          {/* Feedback */}
+          {success && <div className="fk-alert fk-alert--success">{success}</div>}
+          {error   && <div className="fk-alert fk-alert--danger">{error}</div>}
+
+          {/* Qty + actions */}
+          {!isOutOfStock ? (
+            <>
+              <div className="fk-pdp-qty-row">
+                <span className="fk-pdp-qty-label">Quantity</span>
+                <div className="fk-qty-ctrl">
+                  <button className="fk-qty-btn" onClick={() => setQuantity((q) => Math.max(1, q - 1))} disabled={quantity <= 1}>−</button>
+                  <span className="fk-qty-val">{quantity}</span>
+                  <button className="fk-qty-btn" onClick={() => setQuantity((q) => Math.min(maxQty, q + 1))} disabled={quantity >= maxQty}>+</button>
+                </div>
               </div>
-              <Button
-                variant="primary"
-                size="lg"
-                disabled={adding || isOutOfStock}
-                onClick={handleAddToCart}
-              >
-                {adding ? <><Spinner size="sm" animation="border" className="me-2" />Adding…</> : 'Add to Cart'}
-              </Button>
-            </div>
+              <div className="fk-pdp-actions">
+                <button className="fk-btn fk-btn-cart fk-pdp-action-btn" disabled={adding} onClick={handleAddToCart}>
+                  {adding ? 'Adding…' : '🛒 Add to Cart'}
+                </button>
+                <button className="fk-btn fk-btn-buy fk-pdp-action-btn" disabled={adding} onClick={handleAddToCart}>
+                  Buy Now
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="fk-oos-badge fk-oos-large">Currently Unavailable</div>
           )}
-        </Col>
-      </Row>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-ï»¿# Dependencies
+# Dependencies
 node_modules/
 **/node_modules/
 
@@ -25,3 +25,31 @@ docs/
 # OS artefacts
 .DS_Store
 Thumbs.db
+
+# Terraform — never commit state, plans, or variable files containing secrets
+.terraform/
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+tfplan
+*.tfplan
+*.tfvars
+*.tfvars.json
+terraform.tfvars
+terraform.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.lock.hcl
+infra-outputs.json
+
+# Kubernetes — never commit kubeconfig or generated secret manifests
+kubeconfig
+kubeconfig.yaml
+*.kubeconfig
+k8s/*-secret-real.yaml
+k8s/*-secret-prod.yaml
+# VS Code — may contain tokens
+.vscode/

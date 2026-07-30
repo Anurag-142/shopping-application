@@ -24,7 +24,7 @@ export default function App() {
       <CartProvider>
         <BrowserRouter>
           <Navbar />
-          <main className="container py-4">
+          <main>
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/products" element={<ProductsPage />} />

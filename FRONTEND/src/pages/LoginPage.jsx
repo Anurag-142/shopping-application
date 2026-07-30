@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Form, Button, Card, Alert, Container, Row, Col } from 'react-bootstrap';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
@@ -17,16 +16,13 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   function handleChange(e) {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
     setError('');
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!form.email || !form.password) {
-      setError('Both fields are required.');
-      return;
-    }
+    if (!form.email || !form.password) { setError('Both fields are required.'); return; }
     setLoading(true);
     try {
       const data = await authService.login(form);
@@ -41,51 +37,42 @@ export default function LoginPage() {
   }
 
   return (
-    <Container className="py-5">
-      <Row className="justify-content-center">
-        <Col md={5}>
-          <Card className="shadow-sm">
-            <Card.Body className="p-4">
-              <h3 className="fw-bold mb-4 text-center">Sign In</h3>
-              {error && <Alert variant="danger">{error}</Alert>}
-              <Form onSubmit={handleSubmit} noValidate>
-                <Form.Group className="mb-3">
-                  <Form.Label>Email address</Form.Label>
-                  <Form.Control
-                    type="email"
-                    name="email"
-                    value={form.email}
-                    onChange={handleChange}
-                    placeholder="you@example.com"
-                    required
-                    autoFocus
-                  />
-                </Form.Group>
-                <Form.Group className="mb-4">
-                  <Form.Label>Password</Form.Label>
-                  <Form.Control
-                    type="password"
-                    name="password"
-                    value={form.password}
-                    onChange={handleChange}
-                    placeholder="Your password"
-                    required
-                  />
-                </Form.Group>
-                <div className="d-grid">
-                  <Button type="submit" variant="primary" disabled={loading}>
-                    {loading ? 'Signing in…' : 'Sign In'}
-                  </Button>
-                </div>
-              </Form>
-              <p className="text-center mt-3 small text-muted">
-                No account?{' '}
-                <Link to="/signup">Create one here</Link>
-              </p>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-    </Container>
+    <div className="fk-auth-page">
+      {/* Left panel */}
+      <div className="fk-auth-left">
+        <h2 className="fk-auth-left-title">Login</h2>
+        <p className="fk-auth-left-sub">Get access to your Orders, Wishlist and Recommendations</p>
+      </div>
+
+      {/* Right panel — form */}
+      <div className="fk-auth-right">
+        <h3 className="fk-auth-form-title">Sign In</h3>
+        {error && <div className="fk-alert fk-alert--danger">{error}</div>}
+        <form onSubmit={handleSubmit} noValidate className="fk-auth-form">
+          <div className="fk-field">
+            <label className="fk-field-label">Email address</label>
+            <input className="fk-field-input" type="email" name="email" value={form.email}
+              onChange={handleChange} placeholder="you@example.com" autoFocus />
+          </div>
+          <div className="fk-field">
+            <label className="fk-field-label">Password</label>
+            <input className="fk-field-input" type="password" name="password" value={form.password}
+              onChange={handleChange} placeholder="Your password" />
+          </div>
+          <p className="fk-auth-terms">
+            By continuing, you agree to Flipkart's{' '}
+            <span className="fk-auth-link">Terms of Use</span> and{' '}
+            <span className="fk-auth-link">Privacy Policy</span>.
+          </p>
+          <button type="submit" className="fk-btn fk-btn-cart fk-auth-submit" disabled={loading}>
+            {loading ? 'Signing in…' : 'Login'}
+          </button>
+        </form>
+        <p className="fk-auth-alt">
+          New to Flipkart?{' '}
+          <Link to="/signup" className="fk-auth-link">Create an account</Link>
+        </p>
+      </div>
+    </div>
   );
 }

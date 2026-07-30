@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Form, Button, Card, Alert, Container, Row, Col } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
@@ -14,118 +13,75 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
 
   function handleChange(e) {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-    setFieldErrors((prev) => ({ ...prev, [e.target.name]: '' }));
+    setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
+    setFieldErrors((p) => ({ ...p, [e.target.name]: '' }));
     setApiError('');
   }
 
   function validate() {
-    const errs = {};
-    if (!form.name || form.name.trim().length < 2) errs.name = 'Name must be at least 2 characters.';
-    if (!form.email || !/\S+@\S+\.\S+/.test(form.email)) errs.email = 'Valid email is required.';
-    if (!form.password || form.password.length < 8) errs.password = 'Password must be at least 8 characters.';
-    else if (!/[A-Z]/.test(form.password)) errs.password = 'Password needs at least one uppercase letter.';
-    else if (!/[a-z]/.test(form.password)) errs.password = 'Password needs at least one lowercase letter.';
-    else if (!/\d/.test(form.password)) errs.password = 'Password needs at least one digit.';
-    if (form.password !== form.confirmPassword) errs.confirmPassword = 'Passwords do not match.';
-    return errs;
+    const e = {};
+    if (!form.name || form.name.trim().length < 2) e.name = 'Name must be at least 2 characters.';
+    if (!form.email || !/\S+@\S+\.\S+/.test(form.email)) e.email = 'Valid email is required.';
+    if (!form.password || form.password.length < 8) e.password = 'Password must be at least 8 characters.';
+    else if (!/[A-Z]/.test(form.password)) e.password = 'Password needs at least one uppercase letter.';
+    else if (!/[a-z]/.test(form.password)) e.password = 'Password needs at least one lowercase letter.';
+    else if (!/\d/.test(form.password)) e.password = 'Password needs at least one digit.';
+    if (form.password !== form.confirmPassword) e.confirmPassword = 'Passwords do not match.';
+    return e;
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
     const errs = validate();
     if (Object.keys(errs).length > 0) { setFieldErrors(errs); return; }
-
     setLoading(true);
     try {
-      const data = await authService.signup({
-        name: form.name.trim(),
-        email: form.email,
-        password: form.password,
-      });
+      const data = await authService.signup({ name: form.name.trim(), email: form.email, password: form.password });
       login(data.token, data.user);
       navigate('/products');
     } catch (err) {
-      const msg = err.response?.data?.errors?.[0]?.msg
-        || err.response?.data?.error
-        || 'Registration failed. Please try again.';
-      setApiError(msg);
+      setApiError(err.response?.data?.errors?.[0]?.msg || err.response?.data?.error || 'Registration failed.');
     } finally {
       setLoading(false);
     }
   }
 
+  function Field({ label, name, type = 'text', placeholder }) {
+    return (
+      <div className="fk-field">
+        <label className="fk-field-label">{label}</label>
+        <input className={`fk-field-input${fieldErrors[name] ? ' fk-field-input--err' : ''}`}
+          type={type} name={name} value={form[name]} onChange={handleChange} placeholder={placeholder} />
+        {fieldErrors[name] && <span className="fk-field-err">{fieldErrors[name]}</span>}
+      </div>
+    );
+  }
+
   return (
-    <Container className="py-5">
-      <Row className="justify-content-center">
-        <Col md={5}>
-          <Card className="shadow-sm">
-            <Card.Body className="p-4">
-              <h3 className="fw-bold mb-4 text-center">Create Account</h3>
-              {apiError && <Alert variant="danger">{apiError}</Alert>}
-              <Form onSubmit={handleSubmit} noValidate>
-                <Form.Group className="mb-3">
-                  <Form.Label>Full Name</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="name"
-                    value={form.name}
-                    onChange={handleChange}
-                    isInvalid={!!fieldErrors.name}
-                    placeholder="Jane Doe"
-                    autoFocus
-                  />
-                  <Form.Control.Feedback type="invalid">{fieldErrors.name}</Form.Control.Feedback>
-                </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label>Email address</Form.Label>
-                  <Form.Control
-                    type="email"
-                    name="email"
-                    value={form.email}
-                    onChange={handleChange}
-                    isInvalid={!!fieldErrors.email}
-                    placeholder="you@example.com"
-                  />
-                  <Form.Control.Feedback type="invalid">{fieldErrors.email}</Form.Control.Feedback>
-                </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label>Password</Form.Label>
-                  <Form.Control
-                    type="password"
-                    name="password"
-                    value={form.password}
-                    onChange={handleChange}
-                    isInvalid={!!fieldErrors.password}
-                    placeholder="Min. 8 chars, upper, lower, digit"
-                  />
-                  <Form.Control.Feedback type="invalid">{fieldErrors.password}</Form.Control.Feedback>
-                </Form.Group>
-                <Form.Group className="mb-4">
-                  <Form.Label>Confirm Password</Form.Label>
-                  <Form.Control
-                    type="password"
-                    name="confirmPassword"
-                    value={form.confirmPassword}
-                    onChange={handleChange}
-                    isInvalid={!!fieldErrors.confirmPassword}
-                    placeholder="Repeat your password"
-                  />
-                  <Form.Control.Feedback type="invalid">{fieldErrors.confirmPassword}</Form.Control.Feedback>
-                </Form.Group>
-                <div className="d-grid">
-                  <Button type="submit" variant="primary" disabled={loading}>
-                    {loading ? 'Creating account…' : 'Create Account'}
-                  </Button>
-                </div>
-              </Form>
-              <p className="text-center mt-3 small text-muted">
-                Already have an account? <Link to="/login">Sign in</Link>
-              </p>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-    </Container>
+    <div className="fk-auth-page">
+      {/* Left panel */}
+      <div className="fk-auth-left">
+        <h2 className="fk-auth-left-title">Create Account</h2>
+        <p className="fk-auth-left-sub">Shop smarter. Track orders. Get exclusive deals.</p>
+      </div>
+
+      {/* Right panel */}
+      <div className="fk-auth-right">
+        <h3 className="fk-auth-form-title">Create Account</h3>
+        {apiError && <div className="fk-alert fk-alert--danger">{apiError}</div>}
+        <form onSubmit={handleSubmit} noValidate className="fk-auth-form">
+          <Field label="Full Name"       name="name"            placeholder="Jane Doe" />
+          <Field label="Email address"   name="email"           type="email"    placeholder="you@example.com" />
+          <Field label="Password"        name="password"        type="password" placeholder="Min. 8 chars, upper, lower, digit" />
+          <Field label="Confirm Password" name="confirmPassword" type="password" placeholder="Repeat your password" />
+          <button type="submit" className="fk-btn fk-btn-cart fk-auth-submit" disabled={loading}>
+            {loading ? 'Creating account…' : 'Create Account'}
+          </button>
+        </form>
+        <p className="fk-auth-alt">
+          Already have an account? <Link to="/login" className="fk-auth-link">Login</Link>
+        </p>
+      </div>
+    </div>
   );
 }

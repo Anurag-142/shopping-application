@@ -1,0 +1,180 @@
+# ─────────────────────────────────────────────────────────────────
+# PostgreSQL — StatefulSet for in-cluster use
+#
+# ┌─────────────────────────────────────────────────────────────┐
+# │  PRODUCTION RECOMMENDATION                                  │
+# │  Run PostgreSQL as a managed service (Cloud SQL on GCP,     │
+# │  RDS on AWS, or Azure Database for PostgreSQL) rather than  │
+# │  as a Kubernetes StatefulSet.                               │
+# │                                                             │
+# │  Reasons:                                                   │
+# │  • Automated backups and point-in-time recovery             │
+# │  • Read replicas with zero operator effort                  │
+# │  • Automated minor-version patching                         │
+# │  • HA/failover managed by the cloud provider               │
+# │  • No need to manage PersistentVolumes or StorageClasses    │
+# │                                                             │
+# │  The StatefulSet below is provided for environments where   │
+# │  a managed database is not available (local CI, edge, or    │
+# │  air-gapped clusters).                                      │
+# └─────────────────────────────────────────────────────────────┘
+# ─────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: shopping
+  labels:
+    app: postgres
+    tier: database
+spec:
+  serviceName: postgres-service        # Must match the headless Service below
+  replicas: 1                          # Single writer; use managed DB for multi-replica HA
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+        tier: database
+    spec:
+      securityContext:
+        fsGroup: 999                   # postgres group in the official image
+
+      terminationGracePeriodSeconds: 60
+
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+              name: postgres
+
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: shopping-config
+                  key: DB_NAME
+            - name: POSTGRES_USER
+              value: shopping_user     # Non-sensitive; adjust to taste
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shopping-secret
+                  key: POSTGRES_PASSWORD
+
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+
+          # ── Volume mount ───────────────────────────────────────
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+              subPath: pgdata           # Avoids the "lost+found" issue on ext4 volumes
+
+          # ── Readiness probe ────────────────────────────────────
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - shopping_user
+                - -d
+                - shopping_db
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 5
+
+          # ── Liveness probe ─────────────────────────────────────
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - shopping_user
+                - -d
+                - shopping_db
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3
+
+  # ── PersistentVolumeClaim template ──────────────────────────────
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: "standard-rwo"   # GKE default; change for AWS (gp3) / Azure (managed-premium)
+        resources:
+          requests:
+            storage: 20Gi
+
+---
+# ─────────────────────────────────────────────────────────────────
+# Headless Service — stable DNS for the StatefulSet
+# Pods are reachable at: postgres-0.postgres-service.shopping.svc.cluster.local
+# ─────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  namespace: shopping
+  labels:
+    app: postgres
+spec:
+  clusterIP: None                      # Headless — StatefulSet DNS
+  selector:
+    app: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+
+---
+# ─────────────────────────────────────────────────────────────────
+# Notes on scaling PostgreSQL at production scale
+# ─────────────────────────────────────────────────────────────────
+#
+# Option A — Managed database (RECOMMENDED)
+#   Provision Cloud SQL (GCP), RDS (AWS), or Azure Database for
+#   PostgreSQL. The Terraform config in terraform/ does this.
+#   Change DATABASE_URL in the Secret to point to the managed
+#   endpoint. Remove this StatefulSet entirely.
+#
+# Option B — Operator-managed in-cluster (advanced)
+#   Deploy the CloudNativePG operator (cloudnative-pg.io).
+#   It manages a primary + N read replicas, automated failover,
+#   WAL archiving to GCS/S3, and connection pooling via PgBouncer.
+#   Example minimal cluster spec:
+#
+#   apiVersion: postgresql.cnpg.io/v1
+#   kind: Cluster
+#   metadata:
+#     name: postgres-cluster
+#     namespace: shopping
+#   spec:
+#     instances: 3
+#     primaryUpdateStrategy: unsupervised
+#     storage:
+#       size: 20Gi
+#     backup:
+#       barmanObjectStore:
+#         destinationPath: gs://my-bucket/postgres-backups
+#         googleCredentials:
+#           applicationCredentials:
+#             name: google-creds
+#             key: credentials.json
+#
+# Option C — Single StatefulSet (this file)
+#   Suitable for staging / low-traffic production only.
+#   No automatic failover. If the pod restarts, the PVC remains
+#   and data survives, but the service is briefly unavailable.
+#   Scale replicas to 1 (single primary; PostgreSQL does not support
+#   multi-primary without Citus or BDR).

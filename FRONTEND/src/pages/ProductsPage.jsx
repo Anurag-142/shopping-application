@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Row, Col, Form, InputGroup, Button, Pagination, Alert } from 'react-bootstrap';
+import { Alert } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { productService } from '../services/productService';
 import { cartService } from '../services/cartService';
@@ -59,10 +59,7 @@ export default function ProductsPage() {
   }
 
   async function handleAddToCart(product) {
-    if (!isAuthenticated) {
-      navigate('/login');
-      return;
-    }
+    if (!isAuthenticated) { navigate('/login'); return; }
     setAddingId(product.id);
     try {
       const cart = await cartService.addItem(product.id, 1);
@@ -76,102 +73,142 @@ export default function ProductsPage() {
     }
   }
 
-  function renderPagination() {
-    const { page, totalPages } = pagination;
-    if (totalPages <= 1) return null;
-    const items = [];
-    items.push(
-      <Pagination.Prev key="prev" disabled={page === 1} onClick={() => fetchProducts(page - 1)} />
-    );
-    for (let p = 1; p <= totalPages; p++) {
-      if (totalPages > 7 && p > 3 && p < totalPages - 1 && Math.abs(p - page) > 1) {
-        if (p === 4 || p === totalPages - 2) items.push(<Pagination.Ellipsis key={`e${p}`} />);
-        continue;
-      }
-      items.push(
-        <Pagination.Item key={p} active={p === page} onClick={() => fetchProducts(p)}>{p}</Pagination.Item>
-      );
-    }
-    items.push(
-      <Pagination.Next key="next" disabled={page === totalPages} onClick={() => fetchProducts(page + 1)} />
-    );
-    return <Pagination className="justify-content-center mt-4">{items}</Pagination>;
-  }
-
   return (
-    <div>
-      <h2 className="fw-bold mb-4">Products</h2>
+    <div className="fk-page">
 
-      {addMessage && <Alert variant="success" dismissible onClose={() => setAddMessage('')}>{addMessage}</Alert>}
-      {error && <Alert variant="danger" dismissible onClose={() => setError('')}>{error}</Alert>}
-
-      <Row className="mb-4">
-        {/* Search */}
-        <Col md={7}>
-          <Form onSubmit={handleSearch}>
-            <InputGroup>
-              <Form.Control
-                placeholder="Search products…"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-              />
-              <Button type="submit" variant="primary">Search</Button>
-              {search && (
-                <Button variant="outline-secondary" onClick={() => { setSearch(''); setSearchInput(''); }}>
-                  Clear
-                </Button>
-              )}
-            </InputGroup>
-          </Form>
-        </Col>
-
-        {/* Category filter */}
-        <Col md={5} className="mt-2 mt-md-0 d-flex flex-wrap gap-1 align-items-center">
-          <span className="small text-muted me-1">Category:</span>
-          <Button
-            size="sm"
-            variant={selectedCategory === '' ? 'primary' : 'outline-primary'}
-            onClick={() => setSelectedCategory('')}
-          >
-            All
-          </Button>
-          {categories.map((cat) => (
-            <Button
-              key={cat.id}
-              size="sm"
-              variant={selectedCategory === String(cat.id) ? 'primary' : 'outline-primary'}
-              onClick={() => handleCategoryChange(String(cat.id))}
-            >
-              {cat.name}
-            </Button>
-          ))}
-        </Col>
-      </Row>
-
-      {loading ? (
-        <LoadingSpinner />
-      ) : products.length === 0 ? (
-        <div className="text-center text-muted py-5">
-          <p className="fs-5">No products found.</p>
-          {(search || selectedCategory) && (
-            <Button variant="link" onClick={() => { setSearch(''); setSearchInput(''); setSelectedCategory(''); }}>
-              Clear filters
-            </Button>
+      {/* ── Top search bar (Flipkart blue) ── */}
+      <div className="fk-search-bar">
+        <form onSubmit={handleSearch} className="fk-search-form">
+          <input
+            className="fk-search-input"
+            placeholder="Search for products, brands and more"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+          />
+          <button type="submit" className="fk-search-btn">🔍 Search</button>
+          {search && (
+            <button
+              type="button"
+              className="fk-search-clear"
+              onClick={() => { setSearch(''); setSearchInput(''); }}
+            >✕</button>
           )}
-        </div>
-      ) : (
-        <>
-          <p className="text-muted small">{pagination.total} product{pagination.total !== 1 ? 's' : ''} found</p>
-          <Row xs={1} sm={2} md={3} lg={4} className="g-4">
-            {products.map((product) => (
-              <Col key={product.id}>
-                <ProductCard product={product} onAddToCart={handleAddToCart} addingId={addingId} />
-              </Col>
-            ))}
-          </Row>
-          {renderPagination()}
-        </>
+        </form>
+      </div>
+
+      {addMessage && (
+        <Alert variant="success" dismissible onClose={() => setAddMessage('')} className="mx-3 mt-2 mb-0">
+          {addMessage}
+        </Alert>
       )}
+      {error && (
+        <Alert variant="danger" dismissible onClose={() => setError('')} className="mx-3 mt-2 mb-0">
+          {error}
+        </Alert>
+      )}
+
+      <div className="fk-layout">
+
+        {/* ── Left sidebar — category filters ── */}
+        <aside className="fk-sidebar">
+          <div className="fk-sidebar-header">Filters</div>
+
+          <div className="fk-filter-section">
+            <div className="fk-filter-title">CATEGORY</div>
+            <ul className="fk-filter-list">
+              <li>
+                <label className="fk-filter-label">
+                  <input
+                    type="radio"
+                    name="category"
+                    checked={selectedCategory === ''}
+                    onChange={() => setSelectedCategory('')}
+                  />
+                  <span>All</span>
+                </label>
+              </li>
+              {categories.map((cat) => (
+                <li key={cat.id}>
+                  <label className="fk-filter-label">
+                    <input
+                      type="radio"
+                      name="category"
+                      checked={selectedCategory === String(cat.id)}
+                      onChange={() => handleCategoryChange(String(cat.id))}
+                    />
+                    <span>{cat.name}</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </aside>
+
+        {/* ── Main content ── */}
+        <main className="fk-main">
+          {/* Results meta */}
+          {!loading && products.length > 0 && (
+            <div className="fk-results-bar">
+              <span className="fk-results-count">
+                {selectedCategory
+                  ? categories.find((c) => String(c.id) === selectedCategory)?.name
+                  : 'All Products'} — <strong>{pagination.total}</strong> item{pagination.total !== 1 ? 's' : ''}
+              </span>
+            </div>
+          )}
+
+          {loading ? (
+            <LoadingSpinner />
+          ) : products.length === 0 ? (
+            <div className="fk-empty">
+              <div className="fk-empty-icon">🔍</div>
+              <p>No products found.</p>
+              {(search || selectedCategory) && (
+                <button
+                  className="fk-btn fk-btn-cart"
+                  onClick={() => { setSearch(''); setSearchInput(''); setSelectedCategory(''); }}
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="fk-grid">
+              {products.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  onAddToCart={handleAddToCart}
+                  addingId={addingId}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {pagination.totalPages > 1 && (
+            <div className="fk-pagination">
+              <button
+                className="fk-page-btn"
+                disabled={pagination.page === 1}
+                onClick={() => fetchProducts(pagination.page - 1)}
+              >‹ Prev</button>
+              {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={p}
+                  className={`fk-page-btn${p === pagination.page ? ' active' : ''}`}
+                  onClick={() => fetchProducts(p)}
+                >{p}</button>
+              ))}
+              <button
+                className="fk-page-btn"
+                disabled={pagination.page === pagination.totalPages}
+                onClick={() => fetchProducts(pagination.page + 1)}
+              >Next ›</button>
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }

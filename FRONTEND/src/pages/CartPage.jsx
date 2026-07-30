@@ -1,5 +1,5 @@
 import React from 'react';
-import { Table, Button, Alert, Row, Col } from 'react-bootstrap';
+import { formatINR } from '../utils/formatCurrency';
 import { Link, useNavigate } from 'react-router-dom';
 import { cartService } from '../services/cartService';
 import { useCart } from '../context/CartContext';
@@ -38,99 +38,94 @@ export default function CartPage() {
 
   if (cartItems.length === 0) {
     return (
-      <div className="text-center py-5">
-        <p className="fs-4 text-muted">Your cart is empty.</p>
-        <Button as={Link} to="/products" variant="primary">Continue Shopping</Button>
+      <div className="fk-cart-empty">
+        <div className="fk-cart-empty-icon">🛒</div>
+        <h2>Your cart is empty!</h2>
+        <p>Add items to it now.</p>
+        <Link to="/products" className="fk-btn fk-btn-cart" style={{ display: 'inline-block', padding: '12px 32px' }}>
+          Shop Now
+        </Link>
       </div>
     );
   }
 
   return (
-    <div>
-      <h2 className="fw-bold mb-4">Shopping Cart</h2>
-      {error && <Alert variant="danger" dismissible onClose={() => setError('')}>{error}</Alert>}
+    <div className="fk-cart-page">
+      <div className="fk-cart-layout">
 
-      <Table responsive hover className="align-middle">
-        <thead className="table-light">
-          <tr>
-            <th>Product</th>
-            <th className="text-center">Price</th>
-            <th className="text-center">Quantity</th>
-            <th className="text-center">Total</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {cartItems.map((item) => (
-            <tr key={item.product_id}>
-              <td>
-                <div className="d-flex align-items-center gap-3">
-                  <img
-                    src={item.image_url || 'https://via.placeholder.com/60'}
-                    alt={item.name}
-                    style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6 }}
-                    onError={(e) => { e.target.src = 'https://via.placeholder.com/60'; }}
-                  />
-                  <span className="fw-semibold small">{item.name}</span>
-                </div>
-              </td>
-              <td className="text-center">${parseFloat(item.unit_price).toFixed(2)}</td>
-              <td className="text-center">
-                <div className="d-flex align-items-center justify-content-center border rounded" style={{ width: 110, margin: '0 auto' }}>
-                  <Button
-                    variant="light"
-                    size="sm"
-                    onClick={() => handleQuantityChange(item.product_id, item.quantity - 1)}
-                    disabled={loadingId === item.product_id}
-                  >−</Button>
-                  <span className="px-2 fw-semibold">{item.quantity}</span>
-                  <Button
-                    variant="light"
-                    size="sm"
-                    onClick={() => handleQuantityChange(item.product_id, item.quantity + 1)}
-                    disabled={loadingId === item.product_id || item.quantity >= item.stock_qty}
-                  >+</Button>
-                </div>
-              </td>
-              <td className="text-center fw-semibold">
-                ${(parseFloat(item.unit_price) * item.quantity).toFixed(2)}
-              </td>
-              <td className="text-end">
-                <Button
-                  variant="outline-danger"
-                  size="sm"
-                  onClick={() => handleRemove(item.product_id)}
-                  disabled={loadingId === item.product_id}
-                >
-                  Remove
-                </Button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
-
-      <Row className="justify-content-end mt-3">
-        <Col md={4}>
-          <div className="bg-light rounded p-3">
-            <div className="d-flex justify-content-between mb-2">
-              <span>Subtotal</span>
-              <span className="fw-semibold">${parseFloat(cartTotal).toFixed(2)}</span>
-            </div>
-            <div className="d-flex justify-content-between fw-bold fs-5 border-top pt-2">
-              <span>Total</span>
-              <span className="text-primary">${parseFloat(cartTotal).toFixed(2)}</span>
-            </div>
-            <Button
-              variant="primary"
-              className="w-100 mt-3"
-              onClick={() => navigate('/checkout')}
-            >
-              Proceed to Checkout
-            </Button>
+        {/* ── Items panel ── */}
+        <div className="fk-cart-items">
+          <div className="fk-cart-header">
+            <h2 className="fk-cart-title">My Cart <span className="fk-cart-count">({cartItems.length} item{cartItems.length !== 1 ? 's' : ''})</span></h2>
           </div>
-        </Col>
-      </Row>
+
+          {error && <div className="fk-alert fk-alert--danger">{error}</div>}
+
+          {cartItems.map((item) => (
+            <div key={item.product_id} className="fk-cart-row">
+              <img
+                src={item.image_url || 'https://via.placeholder.com/80'}
+                alt={item.name}
+                className="fk-cart-img"
+                onError={(e) => { e.target.src = 'https://via.placeholder.com/80'; }}
+              />
+              <div className="fk-cart-item-info">
+                <p className="fk-cart-item-name">{item.name}</p>
+                <p className="fk-cart-item-price">{formatINR(item.unit_price)}</p>
+                <div className="fk-cart-item-actions">
+                  <div className="fk-qty-ctrl">
+                    <button className="fk-qty-btn"
+                      onClick={() => handleQuantityChange(item.product_id, item.quantity - 1)}
+                      disabled={loadingId === item.product_id}>−</button>
+                    <span className="fk-qty-val">{item.quantity}</span>
+                    <button className="fk-qty-btn"
+                      onClick={() => handleQuantityChange(item.product_id, item.quantity + 1)}
+                      disabled={loadingId === item.product_id || item.quantity >= item.stock_qty}>+</button>
+                  </div>
+                  <button className="fk-cart-remove"
+                    onClick={() => handleRemove(item.product_id)}
+                    disabled={loadingId === item.product_id}>
+                    Remove
+                  </button>
+                </div>
+              </div>
+              <div className="fk-cart-item-total">
+                {formatINR(parseFloat(item.unit_price) * item.quantity)}
+              </div>
+            </div>
+          ))}
+
+          <div className="fk-cart-place-row">
+            <button className="fk-btn fk-btn-cart fk-cart-place-btn" onClick={() => navigate('/checkout')}>
+              Place Order
+            </button>
+          </div>
+        </div>
+
+        {/* ── Price summary ── */}
+        <div className="fk-price-summary">
+          <div className="fk-price-summary-header">PRICE DETAILS</div>
+          <div className="fk-price-summary-row">
+            <span>Price ({cartItems.length} item{cartItems.length !== 1 ? 's' : ''})</span>
+            <span>{formatINR(cartTotal)}</span>
+          </div>
+          <div className="fk-price-summary-row">
+            <span>Delivery Charges</span>
+            <span className="fk-price-free">FREE</span>
+          </div>
+          <div className="fk-price-summary-divider" />
+          <div className="fk-price-summary-row fk-price-summary-total">
+            <span>Total Amount</span>
+            <span>{formatINR(cartTotal)}</span>
+          </div>
+          <div className="fk-price-summary-saving">
+            You will save ₹0 on this order
+          </div>
+          <button className="fk-btn fk-btn-cart fk-price-summary-btn" onClick={() => navigate('/checkout')}>
+            Place Order
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

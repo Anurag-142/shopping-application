@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { formatINR } from '../utils/formatCurrency';
+
 import {
   Table, Button, Badge, Alert, Modal, Form, Row, Col, InputGroup, Spinner,
 } from 'react-bootstrap';
@@ -167,7 +169,7 @@ export default function AdminPage() {
                 <td className="text-muted small">#{product.id}</td>
                 <td className="fw-semibold">{product.name}</td>
                 <td><span className="badge bg-secondary">{product.category_name || '—'}</span></td>
-                <td>${parseFloat(product.price).toFixed(2)}</td>
+                <td>{formatINR(product.price)}</td>
                 <td>
                   <span className={product.stock_qty === 0 ? 'text-danger fw-semibold' : ''}>
                     {product.stock_qty}
@@ -246,7 +248,7 @@ export default function AdminPage() {
             <Row>
               <Col sm={4}>
                 <Form.Group className="mb-3">
-                  <Form.Label>Price ($) *</Form.Label>
+                  <Form.Label>Price (₹) *</Form.Label>
                   <Form.Control type="number" step="0.01" min="0" name="price" value={form.price}
                     onChange={handleFormChange} isInvalid={!!formErrors.price} placeholder="29.99" />
                   <Form.Control.Feedback type="invalid">{formErrors.price}</Form.Control.Feedback>

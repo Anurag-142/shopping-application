@@ -1,0 +1,70 @@
+# ─────────────────────────────────────────────────────────────────
+# Ingress — routes external traffic to frontend and backend services
+#
+# Assumption: GKE with the GKE Ingress controller (annotation below)
+# For NGINX Ingress Controller replace the annotation with:
+#   kubernetes.io/ingress.class: "nginx"
+#
+# TLS: managed by Google-managed certificates (annotation below).
+# For cert-manager change the tls section to use a Certificate resource.
+# ─────────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: shopping-ingress
+  namespace: shopping
+  annotations:
+    # GKE Ingress controller
+    kubernetes.io/ingress.class: "gce"
+
+    # Google-managed TLS certificate (replace domain with yours)
+    networking.gke.io/managed-certificates: "shopping-cert"
+
+    # Force HTTPS redirect
+    kubernetes.io/ingress.allow-http: "false"
+
+    # Health check path used by GCE backend health checks
+    kubernetes.io/app-root: "/"
+spec:
+  # ── TLS ───────────────────────────────────────────────────────
+  tls:
+    - hosts:
+        - shop.example.com
+      secretName: shopping-tls         # Used by NGINX Ingress; ignored by GKE managed certs
+
+  # ── Routing rules ─────────────────────────────────────────────
+  rules:
+    - host: shop.example.com
+      http:
+        paths:
+          # API traffic → backend service
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: shopping-backend-service
+                port:
+                  number: 80
+
+          # All other traffic → frontend (React SPA)
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: shopping-frontend-service
+                port:
+                  number: 80
+
+---
+# ─────────────────────────────────────────────────────────────────
+# Google-managed certificate resource (GKE only)
+# Remove this block if using cert-manager or NGINX Ingress.
+# ─────────────────────────────────────────────────────────────────
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: shopping-cert
+  namespace: shopping
+spec:
+  domains:
+    - shop.example.com

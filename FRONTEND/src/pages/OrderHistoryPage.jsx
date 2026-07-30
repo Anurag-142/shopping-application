@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Badge, Button, Alert, Collapse, Card } from 'react-bootstrap';
+import { formatINR } from '../utils/formatCurrency';
 import { orderService } from '../services/orderService';
 import LoadingSpinner from '../components/LoadingSpinner';
 
-const STATUS_VARIANT = {
-  pending: 'warning',
-  processing: 'info',
-  shipped: 'primary',
-  delivered: 'success',
-  cancelled: 'danger',
+const STATUS_COLOR = {
+  pending:    { bg: '#fff3cd', text: '#856404' },
+  processing: { bg: '#cce5ff', text: '#004085' },
+  shipped:    { bg: '#d1ecf1', text: '#0c5460' },
+  delivered:  { bg: '#d4edda', text: '#155724' },
+  cancelled:  { bg: '#f8d7da', text: '#721c24' },
 };
 
 export default function OrderHistoryPage() {
@@ -27,12 +27,9 @@ export default function OrderHistoryPage() {
   }, []);
 
   async function toggleDetail(orderId) {
-    if (expandedOrder === orderId) {
-      setExpandedOrder(null);
-      return;
-    }
+    if (expandedOrder === orderId) { setExpandedOrder(null); return; }
     setExpandedOrder(orderId);
-    if (orderDetail[orderId]) return; // already fetched
+    if (orderDetail[orderId]) return;
     setDetailLoading(true);
     try {
       const detail = await orderService.getOrderDetail(orderId);
@@ -47,82 +44,80 @@ export default function OrderHistoryPage() {
   if (loading) return <LoadingSpinner />;
 
   return (
-    <div>
-      <h2 className="fw-bold mb-4">My Orders</h2>
-      {error && <Alert variant="danger">{error}</Alert>}
+    <div className="fk-orders-page">
+      <h2 className="fk-orders-title">My Orders</h2>
+      {error && <div className="fk-alert fk-alert--danger">{error}</div>}
 
       {orders.length === 0 ? (
-        <p className="text-muted">You have not placed any orders yet.</p>
+        <div className="fk-cart-empty">
+          <div className="fk-cart-empty-icon">📦</div>
+          <h3>No orders yet</h3>
+          <p>Looks like you have not ordered anything yet.</p>
+          <a href="/products" className="fk-btn fk-btn-cart" style={{ display: 'inline-block', padding: '12px 32px' }}>
+            Start Shopping
+          </a>
+        </div>
       ) : (
-        <Table responsive hover>
-          <thead className="table-light">
-            <tr>
-              <th>Order #</th>
-              <th>Date</th>
-              <th>Total</th>
-              <th>Status</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {orders.map((order) => (
-              <React.Fragment key={order.id}>
-                <tr>
-                  <td className="fw-semibold">#{order.id}</td>
-                  <td>{new Date(order.created_at).toLocaleDateString()}</td>
-                  <td className="fw-semibold">${parseFloat(order.total_amount).toFixed(2)}</td>
-                  <td>
-                    <Badge bg={STATUS_VARIANT[order.status] || 'secondary'} className="text-capitalize">
-                      {order.status}
-                    </Badge>
-                  </td>
-                  <td>
-                    <Button variant="link" size="sm" className="p-0 text-decoration-none"
-                      onClick={() => toggleDetail(order.id)}>
-                      {expandedOrder === order.id ? 'Hide ▲' : 'View Details ▼'}
-                    </Button>
-                  </td>
-                </tr>
+        <div className="fk-orders-list">
+          {orders.map((order) => {
+            const sc = STATUS_COLOR[order.status] || { bg: '#eee', text: '#333' };
+            return (
+              <div key={order.id} className="fk-order-card">
+                <div className="fk-order-card-header">
+                  <div className="fk-order-meta">
+                    <span className="fk-order-id">Order #{order.id}</span>
+                    <span className="fk-order-date">{new Date(order.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                  </div>
+                  <div className="fk-order-right">
+                    <span className="fk-order-amount">{formatINR(order.total_amount)}</span>
+                    <span className="fk-order-status" style={{ background: sc.bg, color: sc.text }}>
+                      {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                    </span>
+                    <button className="fk-order-details-btn" onClick={() => toggleDetail(order.id)}>
+                      {expandedOrder === order.id ? 'Hide Details ▲' : 'View Details ▼'}
+                    </button>
+                  </div>
+                </div>
+
                 {expandedOrder === order.id && (
-                  <tr>
-                    <td colSpan={5} className="p-0">
-                      <Collapse in>
-                        <div className="p-3 bg-light">
-                          {detailLoading && !orderDetail[order.id] ? (
-                            <p className="small text-muted">Loading…</p>
-                          ) : orderDetail[order.id] ? (
-                            <>
-                              <Table size="sm" className="mb-2">
-                                <thead>
-                                  <tr><th>Item</th><th>Qty</th><th>Unit Price</th><th>Line Total</th></tr>
-                                </thead>
-                                <tbody>
-                                  {orderDetail[order.id].items.map((item) => (
-                                    <tr key={item.id}>
-                                      <td>{item.name}</td>
-                                      <td>{item.quantity}</td>
-                                      <td>${parseFloat(item.unit_price).toFixed(2)}</td>
-                                      <td>${(parseFloat(item.unit_price) * item.quantity).toFixed(2)}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </Table>
-                              <p className="small text-muted mb-0">
-                                Shipped to: {orderDetail[order.id].shipping_name},{' '}
-                                {orderDetail[order.id].shipping_city},{' '}
-                                {orderDetail[order.id].shipping_country}
-                              </p>
-                            </>
-                          ) : null}
-                        </div>
-                      </Collapse>
-                    </td>
-                  </tr>
+                  <div className="fk-order-detail">
+                    {detailLoading && !orderDetail[order.id] ? (
+                      <p className="fk-order-detail-loading">Loading…</p>
+                    ) : orderDetail[order.id] ? (
+                      <>
+                        <table className="fk-order-items-table">
+                          <thead>
+                            <tr>
+                              <th>Item</th>
+                              <th>Qty</th>
+                              <th>Unit Price</th>
+                              <th>Line Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {orderDetail[order.id].items.map((item) => (
+                              <tr key={item.id}>
+                                <td>{item.name}</td>
+                                <td>{item.quantity}</td>
+                                <td>{formatINR(item.unit_price)}</td>
+                                <td>{formatINR(parseFloat(item.unit_price) * item.quantity)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        <p className="fk-order-shipped-to">
+                          📦 Shipped to: {orderDetail[order.id].shipping_name},{' '}
+                          {orderDetail[order.id].shipping_city},{' '}
+                          {orderDetail[order.id].shipping_country}
+                        </p>
+                      </>
+                    ) : null}
+                  </div>
                 )}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </Table>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

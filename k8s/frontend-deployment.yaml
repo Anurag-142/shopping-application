@@ -1,0 +1,88 @@
+# ─────────────────────────────────────────────────────────────────
+# Frontend — Kubernetes Deployment + ClusterIP Service
+# Image: REGION-docker.pkg.dev/PROJECT_ID/shopping-app/frontend:TAG
+# ─────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shopping-frontend
+  namespace: shopping
+  labels:
+    app: shopping-frontend
+    tier: web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: shopping-frontend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: shopping-frontend
+        tier: web
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101                  # nginx user in the official nginx:alpine image
+
+      containers:
+        - name: frontend
+          image: REGION-docker.pkg.dev/PROJECT_ID/shopping-app/frontend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+              name: http
+
+          # ── Resource limits ────────────────────────────────────
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+
+          # ── Readiness probe ────────────────────────────────────
+          # Nginx serves /healthz once it is fully started
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+
+          # ── Liveness probe ─────────────────────────────────────
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+
+---
+# ─────────────────────────────────────────────────────────────────
+# Frontend Service — ClusterIP (exposed via Ingress)
+# ─────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: shopping-frontend-service
+  namespace: shopping
+  labels:
+    app: shopping-frontend
+spec:
+  type: ClusterIP
+  selector:
+    app: shopping-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
